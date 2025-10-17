@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram UserBot Host</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .form-container {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .code-input {
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Telegram UserBot</h1>
+            <p>Host your Telegram userbot in the cloud</p>
+        </div>
+
+        <div class="form-container">
+            <div id="alert" class="alert"></div>
+
+            <!-- Step 1: Credentials -->
+            <div id="step1" class="step active">
+                <div class="form-group">
+                    <label for="phone">Phone Number</label>
+                    <input type="text" id="phone" placeholder="+1234567890" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiId">API ID</label>
+                    <input type="text" id="apiId" placeholder="1234567" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiHash">API Hash</label>
+                    <input type="text" id="apiHash" placeholder="a1b2c3d4e5f6g7h8" required>
+                </div>
+                
+                <button class="btn" onclick="startAuth()">Connect to Telegram</button>
+            </div>
+
+            <!-- Step 2: Code Verification -->
+            <div id="step2" class="step">
+                <div class="form-group">
+                    <label for="code">Verification Code</label>
+                    <input type="text" id="code" class="code-input" placeholder="12345" maxlength="5" required>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Enter the 5-digit code sent to your Telegram account
+                    </small>
+                </div>
+                
+                <button class="btn" onclick="verifyCode()">Verify & Start UserBot</button>
+                <button class="btn" onclick="backToStep1()" style="background: #6c757d; margin-top: 10px;">Back</button>
+            </div>
+
+            <div id="status" class="status">
+                <h3>✅ UserBot Connected!</h3>
+                <p>Your userbot is now running on Render.</p>
+                <p>Try sending <strong>/menu</strong> to any chat!</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert ${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 5000);
+        }
+
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+        }
+
+        async function startAuth() {
+            const phone = document.getElementById('phone').value;
+            const apiId = document.getElementById('apiId').value;
+            const apiHash = document.getElementById('apiHash').value;
+
+            if (!phone || !apiId || !apiHash) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/start-auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, apiId, apiHash })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSessionId = data.sessionId;
+                    showAlert(data.message, 'success');
+                    showStep(2);
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Network error: ' + error.message, 'error');
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById('code').value;
+
+            if (!code) {
+                showAlert('Please enter the verification code', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/verify-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ sessionId: currentSessionId, code })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert(data.message, 'success');
+                    document.getElementById('status').classList.add('connected');
+                    document.getElementById('status').style.display = 'block';
+                    showStep(3);
+                } else {
+                    showAlert(data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('Network error: ' + error.message, 'error');
+            }
+        }
+
+        function backToStep1() {
+            showStep(1);
+        }
+
+        // Enter key support
+        document.getElementById('code').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyCode();
+            }
+        });
+    </script>
+</body>
+</html>
