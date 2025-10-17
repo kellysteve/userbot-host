@@ -1,6 +1,6 @@
 {
   "name": "telegram-userbot-host",
-  "version": " "1.0.0",
+  "version": "1.0.0",
   "description": "Web-based Telegram UserBot Hosting",
   "main": "server.js",
   "scripts": {
@@ -19,7 +19,11 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
-  "keywords": ["telegram", "userbot", "hosting"],
+  "keywords": [
+    "telegram",
+    "userbot",
+    "hosting"
+  ],
   "author": "Your Name",
   "license": "MIT"
 }
