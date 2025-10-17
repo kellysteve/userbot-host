@@ -51,13 +51,26 @@ app.post('/api/start-auth', async (req, res) => {
             connectionRetries: 5,
         });
 
-        await client.connect();
-        console.log('Connected to Telegram, sending code...');
-        
-        const codeRequest = await client.sendCode(phone, {
-            apiId: parseInt(apiId),
-            apiHash: apiHash,
+        await client.start({
+            phoneNumber: phone,
+            phoneCode: async () => {
+                // This will be called when we need to provide the code
+                return new Promise(() => {}); // We'll handle this separately
+            },
+            onError: (err) => {
+                console.error('Telegram client error:', err);
+            },
         });
+
+        // For manual code sending (the correct way)
+        await client.connect();
+        const result = await client.sendCode(
+            {
+                apiId: parseInt(apiId),
+                apiHash: apiHash,
+            },
+            phone
+        );
 
         // Store temporary session data
         activeSessions.set(sessionId, {
@@ -65,7 +78,7 @@ app.post('/api/start-auth', async (req, res) => {
             phone,
             apiId: parseInt(apiId),
             apiHash,
-            phoneCodeHash: codeRequest.phoneCodeHash,
+            phoneCodeHash: result.phoneCodeHash,
             createdAt: Date.now()
         });
 
@@ -86,6 +99,10 @@ app.post('/api/start-auth', async (req, res) => {
             errorMessage = 'Invalid API ID or API Hash';
         } else if (error.message.includes('FLOOD')) {
             errorMessage = 'Too many attempts. Please wait before trying again.';
+        } else if (error.message.includes('PHONE_NUMBER_BANNED')) {
+            errorMessage = 'This phone number is banned from Telegram';
+        } else if (error.message.includes('PHONE_NUMBER_FLOOD')) {
+            errorMessage = 'Too many attempts with this phone number';
         } else {
             errorMessage += error.message;
         }
@@ -115,37 +132,46 @@ app.post('/api/verify-code', async (req, res) => {
         console.log('Signing in with code...');
         
         // Sign in with the code
+        let user;
         try {
-            await client.signIn(phone, code, phoneCodeHash);
+            user = await client.signIn({
+                phoneNumber: phone,
+                phoneCode: () => code,
+                phoneCodeHash: phoneCodeHash,
+            });
         } catch (signInError) {
             // If 2FA password is required
-            if (signInError.message.includes('SESSION_PASSWORD_NEEDED')) {
+            if (signInError.error_message === 'SESSION_PASSWORD_NEEDED') {
                 if (!password) {
                     return res.status(400).json({ 
                         error: 'Two-factor authentication required', 
                         requires2FA: true 
                     });
                 }
-                // For 2FA, you would need to handle the password
-                // This is a simplified version
-                return res.status(400).json({ 
-                    error: '2FA is not fully supported in this version. Please use an account without 2FA.' 
+                // Handle 2FA
+                await client.signInWithPassword({
+                    password: async () => password,
                 });
+                user = await client.getMe();
+            } else {
+                throw signInError;
             }
-            throw signInError;
         }
 
-        // Get user information
-        const me = await client.getMe();
-        console.log('Successfully signed in as:', me.username || me.firstName);
+        // Get user information if not already available
+        if (!user) {
+            user = await client.getMe();
+        }
+        
+        console.log('Successfully signed in as:', user.username || user.firstName);
         
         // Start the userbot functionality
-        await startUserBot(client, sessionId, me);
+        await startUserBot(client, sessionId, user);
         
         // Store the active client
         activeClients.set(sessionId, {
             client,
-            user: me,
+            user: user,
             connectedAt: new Date(),
             sessionString: client.session.save() // Save session for persistence
         });
@@ -153,27 +179,30 @@ app.post('/api/verify-code', async (req, res) => {
         // Remove from temporary sessions
         activeSessions.delete(sessionId);
 
-        console.log('Userbot started successfully for:', me.username || me.firstName);
+        console.log('Userbot started successfully for:', user.username || user.firstName);
         
         res.json({ 
             success: true, 
-            message: `Successfully connected as ${me.firstName || me.username}! Your userbot is now running.`,
-            username: me.username,
-            firstName: me.firstName,
+            message: `Successfully connected as ${user.firstName || user.username || 'User'}! Your userbot is now running.`,
+            username: user.username,
+            firstName: user.firstName,
+            userId: user.id,
             sessionId: sessionId
         });
     } catch (error) {
         console.error('Verification error:', error);
         
         let errorMessage = 'Failed to verify code: ';
-        if (error.message.includes('PHONE_CODE_INVALID')) {
+        if (error.error_message === 'PHONE_CODE_INVALID') {
             errorMessage = 'Invalid verification code';
-        } else if (error.message.includes('PHONE_CODE_EXPIRED')) {
+        } else if (error.error_message === 'PHONE_CODE_EXPIRED') {
             errorMessage = 'Verification code has expired. Please request a new one.';
-        } else if (error.message.includes('SESSION_PASSWORD_NEEDED')) {
+        } else if (error.error_message === 'SESSION_PASSWORD_NEEDED') {
             errorMessage = 'Two-factor authentication is required for this account';
+        } else if (error.message && error.message.includes('PHONE_CODE_INVALID')) {
+            errorMessage = 'Invalid verification code';
         } else {
-            errorMessage += error.message;
+            errorMessage += error.error_message || error.message;
         }
         
         res.status(500).json({ error: errorMessage });
@@ -208,7 +237,6 @@ async function startUserBot(client, sessionId, user) {
                             `/menu - Show this menu\n` +
                             `/ping - Test bot responsiveness\n` +
                             `/status - Detailed bot status\n` +
-                            `/chats - List your recent chats\n` +
                             `/info - Get chat information`
                 });
             }
@@ -244,22 +272,6 @@ async function startUserBot(client, sessionId, user) {
                 });
             }
             
-            // Handle /chats command
-            else if (command === '/chats') {
-                const dialogs = await client.getDialogs({ limit: 10 });
-                let chatsList = '💬 **Recent Chats:**\n\n';
-                
-                dialogs.slice(0, 8).forEach((dialog, index) => {
-                    const chat = dialog.entity;
-                    const unread = dialog.unreadCount > 0 ? `🔴 ${dialog.unreadCount}` : '✅';
-                    chatsList += `${index + 1}. ${chat.title || chat.firstName || chat.username} ${unread}\n`;
-                });
-                
-                await client.sendMessage(chatId, {
-                    message: chatsList
-                });
-            }
-            
             // Handle /info command
             else if (command === '/info') {
                 const chat = await client.getEntity(chatId);
@@ -268,7 +280,7 @@ async function startUserBot(client, sessionId, user) {
                             `📝 **Name:** ${chat.title || chat.firstName || 'Private Chat'}\n` +
                             `🆔 **ID:** ${chat.id}\n` +
                             `👥 **Type:** ${chat.className}\n` +
-                            `📛 **Username:** ${chat.username || 'None'}\n` +
+                            `📛 **Username:** @${chat.username || 'None'}\n` +
                             `✅ **Verified:** ${chat.verified ? 'Yes' : 'No'}\n` +
                             `🤖 **Bot:** ${chat.bot ? 'Yes' : 'No'}`
                 });
