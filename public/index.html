@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram UserBot Host</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .form-container {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+            margin-top: 10px;
+        }
+
+        .btn.danger {
+            background: #dc3545;
+        }
+
+        .btn.success {
+            background: #28a745;
+        }
+
+        .step {
+            display: none;
+        }
+
+        .step.active {
+            display: block;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .status {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .status.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .code-input {
+            text-align: center;
+            font-size: 18px;
+            letter-spacing: 5px;
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .info-box h4 {
+            color: #0066cc;
+            margin-bottom: 8px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+
+        .info-box code {
+            background: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        .user-info {
+            background: #e8f5e8;
+            border: 1px solid #c8e6c9;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .commands-list {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .command-item {
+            margin-bottom: 8px;
+            font-family: monospace;
+        }
+
+        .uptime-counter {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .uptime-counter .label {
+            color: #ccc;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .uptime-counter .time {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .instructions {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .instructions h4 {
+            color: #856404;
+            margin-bottom: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Telegram UserBot</h1>
+            <p>Real Telegram UserBot Hosting</p>
+        </div>
+
+        <div class="form-container">
+            <div id="alert" class="alert"></div>
+
+            <!-- Step 1: Credentials -->
+            <div id="step1" class="step active">
+                <div class="info-box">
+                    <h4>🔐 Get Telegram API Credentials</h4>
+                    <ul>
+                        <li>1. Visit <a href="https://my.telegram.org/auth" target="_blank">my.telegram.org</a></li>
+                        <li>2. Login with your Telegram account</li>
+                        <li>3. Go to "API Development Tools"</li>
+                        <li>4. Create a new application</li>
+                        <li>5. Copy your API ID and API Hash</li>
+                    </ul>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Your Phone Number</label>
+                    <input type="text" id="phone" placeholder="+1234567890" required>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Include country code (e.g., +1 for US, +44 for UK)
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiId">API ID</label>
+                    <input type="text" id="apiId" placeholder="1234567" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="apiHash">API Hash</label>
+                    <input type="text" id="apiHash" placeholder="a1b2c3d4e5f6g7h8" required>
+                </div>
+                
+                <button class="btn" onclick="startAuth()" id="authBtn">
+                    Request Verification Code
+                </button>
+            </div>
+
+            <!-- Step 2: Code Verification -->
+            <div id="step2" class="step">
+                <div class="instructions">
+                    <h4>📱 Check Your Telegram App</h4>
+                    <p>Telegram has sent a verification code to your account. Please check your Telegram app and enter the code below:</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="code">Telegram Verification Code</label>
+                    <input type="text" id="code" class="code-input" placeholder="12345" maxlength="5" required>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Enter the 5-digit code sent by Telegram
+                    </small>
+                </div>
+
+                <div id="passwordGroup" class="form-group" style="display: none;">
+                    <label for="password">Two-Factor Authentication Password</label>
+                    <input type="password" id="password" placeholder="Your 2FA password">
+                    <small style="color: #666;">Only needed if you have two-factor authentication enabled on your account</small>
+                </div>
+                
+                <button class="btn success" onclick="verifyCode()" id="verifyBtn">
+                    Verify Code & Start UserBot
+                </button>
+                <button class="btn secondary" onclick="backToStep1()">
+                    Back to Credentials
+                </button>
+            </div>
+
+            <!-- Step 3: Connected -->
+            <div id="step3" class="step">
+                <div class="user-info">
+                    <h3>✅ Connected Successfully!</h3>
+                    <p><strong>User:</strong> <span id="userName">Loading...</span></p>
+                    <p><strong>Session ID:</strong> <span id="sessionIdDisplay">...</span></p>
+                    <p><strong>Connected at:</strong> <span id="connectedTime">...</span></p>
+                </div>
+
+                <div class="status connected">
+                    <h4>🤖 UserBot is Running!</h4>
+                    <p>Your Telegram userbot is now active and responding to commands.</p>
+                    
+                    <div class="commands-list">
+                        <h5>Available Commands:</h5>
+                        <div class="command-item"><code>/menu</code> - Show bot menu and info</div>
+                        <div class="command-item"><code>/ping</code> - Test bot responsiveness</div>
+                        <div class="command-item"><code>/status</code> - Detailed status report</div>
+                        <div class="command-item"><code>/info</code> - Get chat information</div>
+                        <div class="command-item"><code>/uptime</code> - Server deployment time</div>
+                    </div>
+                    
+                    <p style="margin-top: 15px; font-size: 14px;">
+                        💡 <strong>Tip:</strong> Send <code>/menu</code> to any chat or to your saved messages to test the bot!
+                    </p>
+                </div>
+
+                <div id="sessionStatus" class="info-box" style="margin-top: 15px;">
+                    <h5>🔄 Session Status</h5>
+                    <p id="statusText">Checking connection...</p>
+                </div>
+                
+                <button class="btn danger" onclick="disconnectSession()" id="disconnectBtn">
+                    Disconnect Session
+                </button>
+                <button class="btn secondary" onclick="resetApp()" style="margin-top: 10px;">
+                    Start New Session
+                </button>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; color: #666; font-size: 12px;">
+                <p>This is a real Telegram UserBot implementation. Your session will remain active until you disconnect.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Uptime Counter -->
+    <div id="uptimeCounter" class="uptime-counter" style="display: none;">
+        <div class="label">Server Uptime:</div>
+        <div class="time" id="uptimeDisplay">00:00:00</div>
+    </div>
+
+    <script>
+        let currentSessionId = null;
+        let statusInterval = null;
+        let uptimeInterval = null;
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = `alert ${type}`;
+            alert.style.display = 'block';
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 8000);
+        }
+
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(`step${stepNumber}`).classList.add('active');
+        }
+
+        function setButtonLoading(buttonId, isLoading, text = '') {
+            const btn = document.getElementById(buttonId);
+            if (isLoading) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="loading"></span>${text}`;
+            } else {
+                btn.disabled = false;
+                btn.textContent = text;
+            }
+        }
+
+        async function startAuth() {
+            const phone = document.getElementById('phone').value;
+            const apiId = document.getElementById('apiId').value;
+            const apiHash = document.getElementById('apiHash').value;
+
+            if (!phone || !apiId || !apiHash) {
+                showAlert('Please fill in all fields', 'error');
+                return;
+            }
+
+            // Basic phone number validation
+            if (!phone.startsWith('+')) {
+                showAlert('Phone number must start with country code (e.g., +1, +44)', 'error');
+                return;
+            }
+
+            setButtonLoading('authBtn', true, 'Requesting code from Telegram...');
+
+            try {
+                const response = await fetch('/api/start-auth', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ phone, apiId, apiHash })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentSessionId = data.sessionId;
+                    showAlert('✅ ' + data.message, 'success');
+                    showStep(2);
+                    // Clear any previous password field
+                    document.getElementById('passwordGroup').style.display = 'none';
+                    document.getElementById('code').value = '';
+                    document.getElementById('password').value = '';
+                } else {
+                    showAlert('❌ ' + (data.error || 'Unknown error occurred'), 'error');
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                showAlert('❌ ' + error.message, 'error');
+            } finally {
+                setButtonLoading('authBtn', false, 'Request Verification Code');
+            }
+        }
+
+        async function verifyCode() {
+            const code = document.getElementById('code').value;
+            const password = document.getElementById('password').value;
+
+            if (!code) {
+                showAlert('Please enter the verification code from Telegram', 'error');
+                return;
+            }
+
+            setButtonLoading('verifyBtn', true, 'Verifying code with Telegram...');
+
+            try {
+                const response = await fetch('/api/verify-code', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        sessionId: currentSessionId, 
+                        code,
+                        password: password || undefined 
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showAlert('🎉 ' + data.message, 'success');
+                    
+                    // Update user info
+                    document.getElementById('userName').textContent = 
+                        data.firstName || data.username || 'User ' + data.userId;
+                    document.getElementById('sessionIdDisplay').textContent = 
+                        currentSessionId.substring(0, 16) + '...';
+                    document.getElementById('connectedTime').textContent = 
+                        new Date().toLocaleString();
+                    
+                    showStep(3);
+                    startStatusPolling();
+                } else {
+                    // Check if 2FA is required
+                    if (data.requires2FA) {
+                        document.getElementById('passwordGroup').style.display = 'block';
+                        showAlert('🔒 ' + data.error, 'warning');
+                        document.getElementById('password').focus();
+                    } else {
+                        showAlert('❌ ' + data.error, 'error');
+                    }
+                }
+            } catch (error) {
+                console.error('Verify error:', error);
+                showAlert('❌ ' + error.message, 'error');
+            } finally {
+                setButtonLoading('verifyBtn', false, 'Verify Code & Start UserBot');
+            }
+        }
+
+        async function startStatusPolling() {
+            // Clear any existing interval
+            if (statusInterval) {
+                clearInterval(statusInterval);
+            }
+
+            // Update status immediately
+            await updateSessionStatus();
+
+            // Update status every 30 seconds
+            statusInterval = setInterval(updateSessionStatus, 30000);
+        }
+
+        async function updateSessionStatus() {
+            if (!currentSessionId) return;
+
+            try {
+                const response = await fetch(`/api/session/${currentSessionId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const statusElement = document.getElementById('statusText');
+                    
+                    if (data.success && data.isConnected) {
+                        const uptime = Math.floor(data.uptime / 1000 / 60);
+                        statusElement.innerHTML = 
+                            `🟢 <strong>Connected</strong><br>` +
+                            `User: ${data.firstName || data.username || 'User ' + data.userId}<br>` +
+                            `Uptime: ${uptime} minutes`;
+                    } else {
+                        statusElement.innerHTML = '🔴 <strong>Disconnected</strong>';
+                    }
+                } else {
+                    document.getElementById('statusText').innerHTML = '🔴 <strong>Disconnected</strong>';
+                }
+            } catch (error) {
+                console.log('Status check failed:', error);
+                document.getElementById('statusText').innerHTML = '⚠️ <strong>Status check failed</strong>';
+            }
+        }
+
+        async function disconnectSession() {
+            if (!currentSessionId) return;
+
+            setButtonLoading('disconnectBtn', true, 'Disconnecting...');
+
+            try {
+                const response = await fetch(`/api/session/${currentSessionId}/disconnect`, {
+                    method: 'POST'
+                });
+
+                if (response.ok) {
+                    showAlert('✅ Session disconnected successfully', 'success');
+                    resetApp();
+                } else {
+                    throw new Error('Failed to disconnect');
+                }
+            } catch (error) {
+                showAlert('❌ Failed to disconnect session', 'error');
+            } finally {
+                setButtonLoading('disconnectBtn', false, 'Disconnect Session');
+            }
+        }
+
+        function backToStep1() {
+            showStep(1);
+        }
+
+        function resetApp() {
+            // Clear intervals
+            if (statusInterval) {
+                clearInterval(statusInterval);
+                statusInterval = null;
+            }
+
+            currentSessionId = null;
+            
+            // Reset form
+            document.getElementById('phone').value = '';
+            document.getElementById('apiId').value = '';
+            document.getElementById('apiHash').value = '';
+            document.getElementById('code').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('passwordGroup').style.display = 'none';
+            
+            showStep(1);
+        }
+
+        // Uptime counter functionality
+        function startUptimeCounter() {
+            const uptimeCounter = document.getElementById('uptimeCounter');
+            uptimeCounter.style.display = 'block';
+            
+            // Update uptime every second
+            uptimeInterval = setInterval(updateUptimeDisplay, 1000);
+            updateUptimeDisplay(); // Initial update
+        }
+
+        function updateUptimeDisplay() {
+            fetch('/api/deployment-info')
+                .then(response => response.json())
+                .then(data => {
+                    const deploymentAge = data.deploymentAge;
+                    const hours = Math.floor(deploymentAge / (1000 * 60 * 60));
+                    const minutes = Math.floor((deploymentAge % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((deploymentAge % (1000 * 60)) / 1000);
+                    
+                    const display = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                    document.getElementById('uptimeDisplay').textContent = display;
+                })
+                .catch(error => {
+                    console.log('Failed to fetch uptime:', error);
+                });
+        }
+
+        function stopUptimeCounter() {
+            if (uptimeInterval) {
+                clearInterval(uptimeInterval);
+                uptimeInterval = null;
+            }
+            document.getElementById('uptimeCounter').style.display = 'none';
+        }
+
+        // Enter key support
+        document.getElementById('code').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyCode();
+            }
+        });
+
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                verifyCode();
+            }
+        });
+
+        // Start uptime counter when page loads
+        window.addEventListener('load', () => {
+            startUptimeCounter();
+            
+            // Test API connection on load
+            fetch('/health')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Server health:', data);
+                    showAlert('✅ Connected to server successfully', 'info');
+                })
+                .catch(error => {
+                    console.log('Server connection test failed:', error);
+                    showAlert('❌ Cannot connect to server. Make sure it\'s running.', 'error');
+                });
+        });
+
+        // Stop when page unloads
+        window.addEventListener('beforeunload', () => {
+            stopUptimeCounter();
+        });
+
+        // Auto-focus on code input when step 2 is shown
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                    if (document.getElementById('step2').classList.contains('active')) {
+                        setTimeout(() => {
+                            document.getElementById('code').focus();
+                        }, 100);
+                    }
+                }
+            });
+        });
+
+        observer.observe(document.getElementById('step2'), {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    </script>
+</body>
+</html>
