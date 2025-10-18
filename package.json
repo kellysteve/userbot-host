@@ -10,7 +10,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "socket.io": "^4.7.2",
-    "telegram": "^4.15.3",
+    "telegram": "^2.26.22",
     "node-cron": "^3.0.2"
   },
   "devDependencies": {
